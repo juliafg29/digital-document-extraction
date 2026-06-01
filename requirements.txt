@@ -1,0 +1,16 @@
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+python-multipart==0.0.20
+
+# Inclui bibliotecas para extrair dados
+!pip install opencv-python lxml numpy
+!pip install paddlepaddle==3.2.2 paddleocr==3.5.0
+!pip install langchain-text-splitters
+
+import xml.etree.ElementTree as ET
+from xml.dom import minidom
+
+
+# Extração de dados de CNH Digital - apenas para 1 padrão
+!pip install opencv-python>=4.9 numpy>=1.26 pytesseract>=0.3.10
+!pip install pdf2image
