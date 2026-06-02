@@ -180,9 +180,6 @@ def only_digits(value: str | None) -> str:
 
 def validate_cpf_digits(cpf: str | None) -> bool:
     """Valida os dois dígitos verificadores pelo algoritmo oficial da Receita Federal.
-
-    Rejeita sequências com todos os dígitos iguais (ex: 111.111.111-11),
-    que tecnicamente passariam na aritmética mas são CPFs inválidos.
     """
     digits = only_digits(cpf)
     if len(digits) != 11 or len(set(digits)) == 1:
@@ -199,7 +196,7 @@ def validate_cpf_digits(cpf: str | None) -> bool:
 
 
 def normalize_cpf(value: str | None) -> str | None:
-    """Formata o CPF como 000.000.000-00 apenas se passar na validação matemática."""
+
     digits = only_digits(value)
     if len(digits) != 11:
         return None
@@ -305,24 +302,7 @@ def ocr_image_with_confidence(
     image: np.ndarray,
     lang: str,
 ) -> tuple[str, dict[str, float]]:
-    """OCR completo com confiança por palavra.
 
-    Usa image_to_data para obter texto e confiança token a token. Retorna:
-      - o texto completo reconstruído linha a linha
-      - um dicionário {palavra_normalizada: confiança} onde cada token do
-        Tesseract é indexado individualmente pela sua forma normalizada
-        (sem acentos, maiúsculas, sem pontuação).
-
-    Indexar por palavra — e não por linha inteira — resolve dois problemas:
-      1. O valor de um campo é sempre um subconjunto das palavras da linha;
-         buscá-lo palavra a palavra elimina a dependência de que o valor
-         coincida exatamente com a linha completa do OCR.
-      2. A confiança calculada reflete apenas as palavras do valor extraído,
-         sem ser diluída pelo rótulo impresso junto (ex: "CPF", "NOME").
-
-    Quando a mesma forma normalizada aparece mais de uma vez (palavra repetida
-    em linhas diferentes), mantém a maior confiança observada.
-    """
     processed = preprocess_for_ocr(image)
     config = "--oem 3 --psm 6"
     data = pytesseract.image_to_data(
@@ -333,7 +313,6 @@ def ocr_image_with_confidence(
     # Índice palavra → confiança (mantém o máximo para palavras repetidas).
     word_confidences: dict[str, float] = {}
 
-    # Também reconstrói o texto agrupado por linha para compatibilidade.
     lines_map: dict[tuple[int, int, int], list[str]] = {}
 
     for i, word in enumerate(data.get("text", [])):
@@ -365,15 +344,7 @@ def ocr_image_with_confidence(
 
 
 def _field_confidence(value: str | None, word_confidences: dict[str, float]) -> float:
-    """Calcula a confiança de um campo como média das confianças de suas palavras.
 
-    Divide o valor em tokens normalizados e consulta cada um no índice gerado
-    pelo Tesseract. Tokens não encontrados (ruído de limpeza, pontuação pura)
-    são ignorados na média — não penalizam o campo.
-
-    Retorna 0.0 apenas se o valor for None, vazio ou nenhum token for encontrado,
-    o que indica que o campo foi inferido por regra sem evidência direta do OCR.
-    """
     if not value:
         return 0.0
 
@@ -387,8 +358,7 @@ def _field_confidence(value: str | None, word_confidences: dict[str, float]) -> 
         if token in word_confidences:
             found_confs.append(word_confidences[token])
         else:
-            # Busca parcial: token é prefixo ou sufixo de uma palavra do índice.
-            # Cobre casos como "01" dentro de "01/01/1990" fragmentado pelo OCR.
+     
             for indexed_word, conf in word_confidences.items():
                 if token in indexed_word or indexed_word in token:
                     found_confs.append(conf)
@@ -555,10 +525,6 @@ def extract_layout_fields(
     debug_dir: Path | None = None,
 ) -> tuple[dict[str, str], dict[str, float]]:
     """Extrai CPF e nacionalidade por posição no layout da CNH.
-
-    O CPF extraído aqui só é aceito se passar na validação matemática dos
-    dígitos verificadores. Caso falhe, o campo não é preenchido e a confiança
-    fica em 0.0, evitando que números aleatórios da página sejam promovidos.
     """
     front = crop_front_side(cnh_page)
     fields: dict[str, str] = {}
@@ -778,15 +744,6 @@ def parse_cnh_text(
     line_confidences: dict[str, float] | None = None,
 ) -> CNHData:
     """Organiza o texto bruto do OCR em campos estruturados e associa confiança.
-
-    Quando line_confidences é fornecido (índice {linha_normalizada: conf} gerado
-    por ocr_image_with_confidence), cada campo extraído recebe a confiança média
-    da linha do OCR de onde o valor foi retirado.
-
-    Campos derivados de padrão fixo (cpf por regex, uf por sigla) herdam a
-    confiança da linha que os originou. Campos inferidos por regra sem base em
-    linha específica (nacionalidade brasileira por keyword, local por fallback)
-    recebem confiança 0.0 para sinalizar que não há evidência direta do Tesseract.
     """
     lc = line_confidences or {}
 
@@ -903,13 +860,8 @@ def extract_ecnh(
     debug_dir: Path | None = None,
     validate_document: bool = True,
 ) -> tuple[CNHData, str]:
-    """Abre a imagem, valida o documento, recorta a CNH, executa OCR e devolve
-    os dados estruturados junto com o texto bruto.
 
-    A leitura de QR Code foi removida: o QR da CNH digital contém dados
-    criptografados que não podem ser decodificados sem a chave do DENATRAN,
-    portanto não agrega informação útil ao processo de extração.
-    """
+ 
     image = cv2.imread(str(image_path))
     if image is None:
         raise FileNotFoundError(f"Não foi possível abrir a imagem: {image_path}")
