@@ -45,7 +45,7 @@ def document_workflow(input_file_path, MIN_SCORE = 0.5):
 
 
     #STEPS FOR DIGITAL CARTEIRA NACIONAL DE HABILITAÇÃO ONLY
-    # {...}
+
     #dados, texto_ocr = extract_ecnh(input_path,lang ="por+eng")
 
     # XML compose

@@ -960,15 +960,3 @@ def extract_ecnh(
         "documento_cnh_marcadores": ", ".join(document_check["markers"]),
     }
     return merged, text
-
-
-
-# Saída em tabela
-
-
-def print_table(data: CNHData) -> None:
-    rows = asdict(data)
-    visible_rows = {key: value for key, value in rows.items() if key != "texto_ocr"}
-    width = max(len(label) for label in visible_rows)
-    for label, value in visible_rows.items():
-        print(f"{label.replace('_', ' ').title():<{width}} : {value or '-'}")
